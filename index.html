@@ -34,11 +34,11 @@
             <!-- 名前入力画面 -->
             <div id="name-input-section">
                 <div class="mb-4">
-                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">お名前を入力してください</label>
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">お名前を入力してください。アルファベット</label>
                     <input type="text" id="name" class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="例: Taro Yamada">
                 </div>
                 <button id="start-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">計測を開始</button>
-                <p id="name-error" class="text-red-500 text-sm mt-2 hidden">お名前を入力してください。</p>
+                <p id="name-error" class="text-red-500 text-sm mt-2 hidden">お名前を入力してください。アルファベット</p>
             </div>
 
             <!-- BPM計測画面 -->
@@ -107,6 +107,7 @@
         let sessionData = []; // CSVに出力するためのデータ配列
         let startTime = 0; // 計測開始時刻(ms)
         const averageCalcCount = 10; // 平均BPMを計算するための直近のタップ数
+        const autoStopCount = 100; // 自動で終了するタップ回数
 
         // --- 関数定義 ---
 
@@ -144,9 +145,33 @@
         });
 
         /**
+         * 計測を終了し、結果を表示する
+         */
+        function endMeasurement() {
+            if (taps.length < 2) {
+                 showMessage('少なくとも2回以上タップしてください。');
+                 return;
+            }
+            
+            const finalAvgBpm = averageBpmDisplay.textContent;
+            resultName.textContent = userName;
+            finalAverageBpm.textContent = finalAvgBpm;
+            
+            downloadCSV();
+            
+            bpmSection.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+        }
+
+        /**
          * タップエリアの処理
          */
         tapArea.addEventListener('click', () => {
+            // 指定回数に達していたら、それ以上タップできないようにする
+            if (taps.length >= autoStopCount) {
+                return;
+            }
+
             const now = Date.now();
             taps.push(now);
             mainDisplay.textContent = taps.length; // メイン表示をタップ数に更新
@@ -190,37 +215,27 @@
                 elapsedTime, 
                 userName, 
                 taps.length, 
-                currentBpm.toFixed(1),     // 小数第1位まで出力（文字列）
-                avgBpm.toFixed(1), 
-                diffBpm.toFixed(1)
+                Math.round(currentBpm), 
+                Math.round(avgBpm),
+                Math.round(diffBpm)
             ]);
+
+            // 指定回数タップしたら自動終了
+            if (taps.length >= autoStopCount) {
+                // ユーザーが「100」の表示を確認できるよう、少し待ってから終了処理
+                setTimeout(endMeasurement, 200);
+            }
         });
 
         /**
          * 終了ボタンの処理
          */
-        stopButton.addEventListener('click', () => {
-            if (taps.length < 2) {
-                 showMessage('少なくとも2回以上タップしてください。');
-                 return;
-            }
-            
-            const finalAvgBpm = averageBpmDisplay.textContent;
-            resultName.textContent = userName;
-            finalAverageBpm.textContent = finalAvgBpm;
-            
-            downloadCSV();
-            
-            bpmSection.classList.add('hidden');
-            resultSection.classList.remove('hidden');
-        });
+        stopButton.addEventListener('click', endMeasurement);
 
         /**
          * リセットボタンの処理
          */
-        resetButton.addEventListener('click', () => {
-            resetState();
-        });
+        resetButton.addEventListener('click', resetState);
         
         /**
          * CSVダウンロード処理
