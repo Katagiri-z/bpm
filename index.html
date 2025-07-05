@@ -48,21 +48,17 @@
                 <!-- タップエリア -->
                 <div id="tap-area" class="tap-button bg-gradient-to-br from-indigo-500 to-purple-600 text-white h-64 w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-transform duration-150 ease-out shadow-lg mb-4">
                     <div class="text-center">
-                        <span class="text-6xl font-bold" id="bpm-display">--</span>
-                        <span class="text-xl ml-1">BPM</span>
+                        <span class="text-6xl font-bold" id="main-display">0</span>
+                        <p class="mt-1 text-indigo-200 text-lg">Taps</p>
                     </div>
-                     <p class="mt-2 text-indigo-200">ここをタップ</p>
+                     <p class="mt-4 text-indigo-200">ここをタップ</p>
                 </div>
                 
                 <!-- 詳細情報 -->
-                <div class="grid grid-cols-2 gap-4 text-center mb-6">
+                <div class="grid grid-cols-1 justify-items-center gap-4 text-center mb-6">
                     <div>
                         <p class="text-gray-500 dark:text-gray-400 text-sm">平均BPM</p>
                         <p id="average-bpm" class="text-2xl font-semibold">--</p>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 dark:text-gray-400 text-sm">タップ数</p>
-                        <p id="tap-count" class="text-2xl font-semibold">0</p>
                     </div>
                 </div>
 
@@ -93,9 +89,8 @@
         const startButton = document.getElementById('start-button');
         
         const displayName = document.getElementById('display-name');
-        const bpmDisplay = document.getElementById('bpm-display');
+        const mainDisplay = document.getElementById('main-display'); // メイン表示エリア
         const averageBpmDisplay = document.getElementById('average-bpm');
-        const tapCountDisplay = document.getElementById('tap-count');
         
         const tapArea = document.getElementById('tap-area');
         const stopButton = document.getElementById('stop-button');
@@ -124,9 +119,8 @@
             sessionData = [];
             startTime = 0;
             nameInput.value = '';
-            bpmDisplay.textContent = '--';
+            mainDisplay.textContent = '0';
             averageBpmDisplay.textContent = '--';
-            tapCountDisplay.textContent = '0';
             nameInputSection.classList.remove('hidden');
             bpmSection.classList.add('hidden');
             resultSection.classList.add('hidden');
@@ -143,7 +137,7 @@
                 nameInputSection.classList.add('hidden');
                 bpmSection.classList.remove('hidden');
                 // CSVのヘッダー行を追加
-                sessionData.push(['ElapsedTime_sec', 'Name', 'TapCount', 'CurrentBPM', 'AverageBPM']);
+                sessionData.push(['ElapsedTime_sec', 'Name', 'TapCount', 'CurrentBPM', 'AverageBPM', 'Ave-Current']);
             } else {
                 nameError.classList.remove('hidden');
             }
@@ -155,11 +149,12 @@
         tapArea.addEventListener('click', () => {
             const now = Date.now();
             taps.push(now);
-            tapCountDisplay.textContent = taps.length;
+            mainDisplay.textContent = taps.length; // メイン表示をタップ数に更新
 
             let elapsedTime = 0;
             let currentBpm = 0;
             let avgBpm = 0;
+            let diffBpm = 0;
 
             if (taps.length === 1) {
                 // 最初のタップ時に開始時刻を記録
@@ -171,8 +166,7 @@
                 // 直近のタップ間隔から現在のBPMを計算
                 const lastInterval = taps[taps.length - 1] - taps[taps.length - 2];
                 currentBpm = 60000 / lastInterval;
-                bpmDisplay.textContent = Math.round(currentBpm);
-
+                
                 // 平均BPMを計算 (直近N回)
                 const recentTaps = taps.slice(-averageCalcCount - 1);
                 if(recentTaps.length > 1) {
@@ -184,6 +178,11 @@
                     avgBpm = 60000 / averageInterval;
                     averageBpmDisplay.textContent = Math.round(avgBpm);
                 }
+                
+                // 平均BPMと現在BPMの差を計算
+                if (avgBpm > 0 && currentBpm > 0) {
+                    diffBpm = avgBpm - currentBpm;
+                }
             }
             
             // CSV用のデータを保存
@@ -191,8 +190,9 @@
                 elapsedTime, 
                 userName, 
                 taps.length, 
-                Math.round(currentBpm), 
-                Math.round(avgBpm)
+                currentBpm.toFixed(1),     // 小数第1位まで出力（文字列）
+                avgBpm.toFixed(1), 
+                diffBpm.toFixed(1)
             ]);
         });
 
