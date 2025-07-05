@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BPM計測ツール</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans JP', sans-serif;
+        }
+        /* ボタンのクリックアニメーション */
+        .tap-button:active {
+            transform: scale(0.95);
+            transition: transform 0.1s ease-in-out;
+        }
+        #message-box {
+            transition: opacity 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen">
+
+    <div id="app" class="w-full max-w-md mx-auto p-4 md:p-6">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 md:p-8 relative">
+
+            <!-- ヘッダー -->
+            <div class="text-center mb-6">
+                <h1 class="text-3xl font-bold text-indigo-600 dark:text-indigo-400">BPM計測ツール</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">心地良いリズムでタップして下さい。</p>
+            </div>
+
+            <!-- 名前入力画面 -->
+            <div id="name-input-section">
+                <div class="mb-4">
+                    <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">お名前を入力してください</label>
+                    <input type="text" id="name" class="w-full px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="例: Taro Yamada">
+                </div>
+                <button id="start-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300 disabled:bg-gray-400 disabled:cursor-not-allowed">計測を開始</button>
+                <p id="name-error" class="text-red-500 text-sm mt-2 hidden">お名前を入力してください。</p>
+            </div>
+
+            <!-- BPM計測画面 -->
+            <div id="bpm-section" class="hidden">
+                <p class="text-center mb-4">計測者: <span id="display-name" class="font-bold"></span></p>
+
+                <!-- タップエリア -->
+                <div id="tap-area" class="tap-button bg-gradient-to-br from-indigo-500 to-purple-600 text-white h-64 w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-transform duration-150 ease-out shadow-lg mb-4">
+                    <div class="text-center">
+                        <span class="text-6xl font-bold" id="main-display">0</span>
+                        <p class="mt-1 text-indigo-200 text-lg">Taps</p>
+                    </div>
+                     <p class="mt-4 text-indigo-200">ここをタップ</p>
+                </div>
+                
+                <!-- 詳細情報 -->
+                <div class="grid grid-cols-1 justify-items-center gap-4 text-center mb-6">
+                    <div>
+                        <p class="text-gray-500 dark:text-gray-400 text-sm">平均BPM</p>
+                        <p id="average-bpm" class="text-2xl font-semibold">--</p>
+                    </div>
+                </div>
+
+                <!-- 終了ボタン -->
+                <button id="stop-button" class="w-full bg-red-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-red-700 transition-colors duration-300">終了してCSVをダウンロード</button>
+            </div>
+            
+            <!-- 結果・リセット画面 -->
+            <div id="result-section" class="hidden text-center">
+                 <p class="text-lg mb-4">計測が完了しました。</p>
+                 <p class="mb-6"><span id="result-name" class="font-bold"></span>さんの最終平均BPMは <span id="final-average-bpm" class="font-bold text-2xl text-indigo-500"></span> でした。</p>
+                 <button id="reset-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 transition-colors duration-300">もう一度計測する</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- メッセージ表示エリア -->
+    <div id="message-box" class="fixed bottom-5 right-5 bg-red-600 text-white py-3 px-5 rounded-lg shadow-lg hidden opacity-0"></div>
+
+    <script>
+        // --- DOM要素の取得 ---
+        const nameInputSection = document.getElementById('name-input-section');
+        const bpmSection = document.getElementById('bpm-section');
+        const resultSection = document.getElementById('result-section');
+        
+        const nameInput = document.getElementById('name');
+        const nameError = document.getElementById('name-error');
+        const startButton = document.getElementById('start-button');
+        
+        const displayName = document.getElementById('display-name');
+        const mainDisplay = document.getElementById('main-display'); // メイン表示エリア
+        const averageBpmDisplay = document.getElementById('average-bpm');
+        
+        const tapArea = document.getElementById('tap-area');
+        const stopButton = document.getElementById('stop-button');
+        
+        const resultName = document.getElementById('result-name');
+        const finalAverageBpm = document.getElementById('final-average-bpm');
+        const resetButton = document.getElementById('reset-button');
+        
+        const messageBox = document.getElementById('message-box');
+
+        // --- アプリケーションの状態を管理する変数 ---
+        let userName = '';
+        let taps = []; // タップした時刻(ms)の配列
+        let sessionData = []; // CSVに出力するためのデータ配列
+        let startTime = 0; // 計測開始時刻(ms)
+        const averageCalcCount = 10; // 平均BPMを計算するための直近のタップ数
+
+        // --- 関数定義 ---
+
+        /**
+         * アプリケーションの状態を初期化する
+         */
+        function resetState() {
+            userName = '';
+            taps = [];
+            sessionData = [];
+            startTime = 0;
+            nameInput.value = '';
+            mainDisplay.textContent = '0';
+            averageBpmDisplay.textContent = '--';
+            nameInputSection.classList.remove('hidden');
+            bpmSection.classList.add('hidden');
+            resultSection.classList.add('hidden');
+            nameError.classList.add('hidden');
+        }
+        
+        /**
+         * 計測開始ボタンの処理
+         */
+        startButton.addEventListener('click', () => {
+            userName = nameInput.value.trim();
+            if (userName) {
+                displayName.textContent = userName;
+                nameInputSection.classList.add('hidden');
+                bpmSection.classList.remove('hidden');
+                // CSVのヘッダー行を追加
+                sessionData.push(['ElapsedTime_sec', 'Name', 'TapCount', 'CurrentBPM', 'AverageBPM', 'Ave-Current']);
+            } else {
+                nameError.classList.remove('hidden');
+            }
+        });
+
+        /**
+         * タップエリアの処理
+         */
+        tapArea.addEventListener('click', () => {
+            const now = Date.now();
+            taps.push(now);
+            mainDisplay.textContent = taps.length; // メイン表示をタップ数に更新
+
+            let elapsedTime = 0;
+            let currentBpm = 0;
+            let avgBpm = 0;
+            let diffBpm = 0;
+
+            if (taps.length === 1) {
+                // 最初のタップ時に開始時刻を記録
+                startTime = now;
+            } else {
+                // 経過時間（秒）を計算
+                elapsedTime = ((now - startTime) / 1000).toFixed(3);
+
+                // 直近のタップ間隔から現在のBPMを計算
+                const lastInterval = taps[taps.length - 1] - taps[taps.length - 2];
+                currentBpm = 60000 / lastInterval;
+                
+                // 平均BPMを計算 (直近N回)
+                const recentTaps = taps.slice(-averageCalcCount - 1);
+                if(recentTaps.length > 1) {
+                    let totalInterval = 0;
+                    for (let i = 1; i < recentTaps.length; i++) {
+                        totalInterval += recentTaps[i] - recentTaps[i - 1];
+                    }
+                    const averageInterval = totalInterval / (recentTaps.length - 1);
+                    avgBpm = 60000 / averageInterval;
+                    averageBpmDisplay.textContent = Math.round(avgBpm);
+                }
+                
+                // 平均BPMと現在BPMの差を計算
+                if (avgBpm > 0 && currentBpm > 0) {
+                    diffBpm = avgBpm - currentBpm;
+                }
+            }
+            
+            // CSV用のデータを保存
+            sessionData.push([
+                elapsedTime, 
+                userName, 
+                taps.length, 
+                currentBpm.toFixed(1),     // 小数第1位まで出力（文字列）
+                avgBpm.toFixed(1), 
+                diffBpm.toFixed(1)
+            ]);
+        });
+
+        /**
+         * 終了ボタンの処理
+         */
+        stopButton.addEventListener('click', () => {
+            if (taps.length < 2) {
+                 showMessage('少なくとも2回以上タップしてください。');
+                 return;
+            }
+            
+            const finalAvgBpm = averageBpmDisplay.textContent;
+            resultName.textContent = userName;
+            finalAverageBpm.textContent = finalAvgBpm;
+            
+            downloadCSV();
+            
+            bpmSection.classList.add('hidden');
+            resultSection.classList.remove('hidden');
+        });
+
+        /**
+         * リセットボタンの処理
+         */
+        resetButton.addEventListener('click', () => {
+            resetState();
+        });
+        
+        /**
+         * CSVダウンロード処理
+         */
+        function downloadCSV() {
+            // UTF-8 BOMを追加して文字化けを防ぐ
+            const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+            const csvContent = sessionData.map(e => e.join(",")).join("\n");
+            const blob = new Blob([bom, csvContent], { type: 'text/csv;charset=utf-8;' });
+            
+            // ダウンロード用のリンクを作成
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.setAttribute("href", url);
+            
+            // ファイル名を設定
+            const now = new Date();
+            const dateStr = now.toISOString().slice(0, 10); // YYYY-MM-DD
+            const hour = String(now.getHours()).padStart(2, '0');
+            const minute = String(now.getMinutes()).padStart(2, '0');
+            const timeStr = `${hour}${minute}`; // HHMM
+            const fileName = `bpm_data_${userName.replace(/\s+/g, '_')}_${dateStr}_${timeStr}.csv`;
+            link.setAttribute("download", fileName);
+            link.style.visibility = 'hidden';
+            
+            // リンクをクリックしてダウンロードを実行
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        /**
+         * 画面にメッセージを表示する
+         * @param {string} message 表示するメッセージ
+         * @param {number} duration 表示時間 (ミリ秒)
+         */
+        function showMessage(message, duration = 3000) {
+            messageBox.textContent = message;
+            messageBox.classList.remove('hidden');
+            // 少し遅延させてからopacityを変更することで、CSSトランジションを確実に発動させる
+            setTimeout(() => {
+                messageBox.classList.remove('opacity-0');
+            }, 10);
+            
+            setTimeout(() => {
+                messageBox.classList.add('opacity-0');
+                // transitionの時間だけ待ってからhiddenにする
+                setTimeout(() => messageBox.classList.add('hidden'), 300);
+            }, duration);
+        }
+
+        // --- 初期化処理の呼び出し ---
+        resetState();
+    </script>
+</body>
+</html>
