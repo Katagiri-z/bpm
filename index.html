@@ -46,7 +46,7 @@
                 <p class="text-center mb-4">計測者: <span id="display-name" class="font-bold"></span></p>
 
                 <!-- タップエリア -->
-                <div id="tap-area" class="tap-button bg-gradient-to-br from-indigo-500 to-purple-600 text-white h-64 w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-transform duration-150 ease-out shadow-lg mb-4">
+                <div id="tap-area" role="button" tabindex="0" class="tap-button bg-gradient-to-br from-indigo-500 to-purple-600 text-white h-64 w-full rounded-2xl flex flex-col items-center justify-center cursor-pointer select-none transition-transform duration-150 ease-out shadow-lg mb-4">
                     <div class="text-center">
                         <span class="text-6xl font-bold" id="main-display">0</span>
                         <p class="mt-1 text-indigo-200 text-lg">Taps</p>
@@ -149,8 +149,8 @@
          */
         function endMeasurement() {
             if (taps.length < 2) {
-                 showMessage('少なくとも2回以上タップしてください。');
-                 return;
+                showMessage('少なくとも2回以上タップしてください。');
+                return;
             }
             
             const finalAvgBpm = averageBpmDisplay.textContent;
@@ -164,9 +164,9 @@
         }
 
         /**
-         * タップエリアの処理
+         * タップ処理（クリックとキーボードの両方に対応）
          */
-        tapArea.addEventListener('click', () => {
+        function handleTap() {
             // 指定回数に達していたら、それ以上タップできないようにする
             if (taps.length >= autoStopCount) {
                 return;
@@ -214,19 +214,28 @@
             
             // CSV用のデータを保存 (ヘッダーと同じ並び順に変更)
             sessionData.push([
-                elapsedTime,                  // ElapsedTime_sec
-                currentBpm.toFixed(1),        // CurrentBPM
-                avgBpm.toFixed(1),            // AverageBPM
-                diffBpm.toFixed(1),           // Ave-Current
-                timeDelta,                    // Time_delta
-                userName,                     // Name
-                taps.length                   // TapCount   
+                elapsedTime,                   // ElapsedTime_sec
+                currentBpm.toFixed(1),         // CurrentBPM
+                avgBpm.toFixed(1),             // AverageBPM
+                diffBpm.toFixed(1),            // Ave-Current
+                timeDelta,                     // Time_delta
+                userName,                      // Name
+                taps.length                    // TapCount   
             ]);
 
             // 指定回数タップしたら自動終了
             if (taps.length >= autoStopCount) {
                 // ユーザーが「100」の表示を確認できるよう、少し待ってから終了処理
                 setTimeout(endMeasurement, 200);
+            }
+        }
+
+        // タップエリアのイベントリスナー
+        tapArea.addEventListener('click', handleTap);
+        tapArea.addEventListener('keydown', (event) => {
+            if (event.key === ' ' || event.key === 'Enter') {
+                event.preventDefault(); // ページのスクロール等を防ぐ
+                handleTap();
             }
         });
 
