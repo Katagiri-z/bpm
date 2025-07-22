@@ -212,15 +212,15 @@
                 }
             }
             
-            // CSV用のデータを保存 (指定の並び順に変更)
+            // CSV用のデータを保存 (ヘッダーと同じ並び順に変更)
             sessionData.push([
-                elapsedTime,
-                currentBpm.toFixed(1),     // 小数第1位まで出力（文字列）
-                avgBpm.toFixed(1), 
-                diffBpm.toFixed(1)
-                timeDelta,
-                userName, 
-                taps.length,
+                elapsedTime,                  // ElapsedTime_sec
+                currentBpm.toFixed(1),        // CurrentBPM
+                avgBpm.toFixed(1),            // AverageBPM
+                diffBpm.toFixed(1),           // Ave-Current
+                timeDelta,                    // Time_delta
+                userName,                     // Name
+                taps.length                   // TapCount   
             ]);
 
             // 指定回数タップしたら自動終了
