@@ -215,12 +215,12 @@
             // CSV用のデータを保存 (指定の並び順に変更)
             sessionData.push([
                 elapsedTime,
-                Math.round(currentBpm),
-                Math.round(avgBpm),
-                Math.round(diffBpm),
                 timeDelta,
                 userName, 
-                taps.length
+                taps.length,
+                currentBpm.toFixed(1),     // 小数第1位まで出力（文字列）
+                avgBpm.toFixed(1), 
+                diffBpm.toFixed(1)
             ]);
 
             // 指定回数タップしたら自動終了
